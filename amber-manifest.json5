@@ -3,18 +3,27 @@
   experimental_features: ["docker"],
 
   // mini-swe-agent + LiteLLM reach Anthropic directly, so we need the
-  // runtime ANTHROPIC_API_KEY inside the container. Declared here as
-  // optional — if supplied via Quick Submit's Config JSON, the env
-  // template below resolves. If supplied only via "Participant secrets"
-  // (which may inject under a platform-specific prefix), the defensive
-  // aliasing in purple/server.py::_alias_anthropic_api_key() catches it.
+  // runtime ANTHROPIC_API_KEY inside the container. We declare it here
+  // with an empty default — Amber's config_schema profile rejects a
+  // property that is neither in `required` nor has a `default`, so the
+  // default makes this a valid optional field. AgentBeats compiles this
+  // into a scenario-level property named `coding_agent_ANTHROPIC_API_KEY`
+  // (role-prefixed); the platform maps Quick Submit's Participant secret
+  // of the same name into it. The env template below then materializes
+  // the plain `ANTHROPIC_API_KEY` env var inside our container.
+  // Defensive: _alias_anthropic_api_key() in server.py also catches
+  // variants like AMBER_CONFIG_CODING_AGENT_ANTHROPIC_API_KEY in case
+  // the platform's prefix convention differs on future runs.
   config_schema: {
     type: "object",
     properties: {
-      ANTHROPIC_API_KEY: { type: "string" },
+      ANTHROPIC_API_KEY: {
+        type: "string",
+        default: "",
+      },
     },
     required: [],
-    additionalProperties: true,
+    additionalProperties: false,
   },
 
   program: {

@@ -24,12 +24,25 @@ logger = logging.getLogger(__name__)
 
 
 # AgentBeats' Amber runtime exposes `${config.X}` values as
-# `AMBER_CONFIG_X` env vars inside the participant container; Quick
-# Submit "Participant secrets" may also land under other prefixes. If
-# the canonical ANTHROPIC_API_KEY isn't set, promote any matching alias
-# so mini-swe-agent / LiteLLM can pick it up.
+# `AMBER_CONFIG_X` env vars inside the participant container. When we
+# declare X at the participant-manifest level, AgentBeats auto-prefixes
+# the scenario-level field with the role name (e.g., our
+# `ANTHROPIC_API_KEY` becomes `coding_agent_ANTHROPIC_API_KEY` in the
+# compiled scenario, per the 019dc154 submission's validation error).
+# So the env var arriving in our container could be any of:
+#   ANTHROPIC_API_KEY                             (plain, from our env template)
+#   AMBER_CONFIG_ANTHROPIC_API_KEY                (Amber's standard mapping)
+#   AMBER_CONFIG_CODING_AGENT_ANTHROPIC_API_KEY   (role-prefixed mapping)
+#   CODING_AGENT_ANTHROPIC_API_KEY                (no AMBER prefix variant)
+# Promote whichever we find to the canonical ANTHROPIC_API_KEY so
+# mini-swe-agent / LiteLLM can pick it up unchanged.
 _API_KEY_ALIAS_PATTERN = re.compile(
-    r"^(AMBER_CONFIG_|AMBER_SECRET_|SECRET_|PARTICIPANT_|)?ANTHROPIC_API_KEY$"
+    r"^("
+    r"AMBER_CONFIG_|AMBER_SECRET_|"
+    r"AMBER_CONFIG_CODING_AGENT_|AMBER_SECRET_CODING_AGENT_|"
+    r"CODING_AGENT_|"
+    r"SECRET_|PARTICIPANT_|"
+    r")?ANTHROPIC_API_KEY$"
 )
 
 
