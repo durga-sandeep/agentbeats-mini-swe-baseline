@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentbeats-mini-swe-baseline"
+version = "0.1.0"
+description = "AgentBeats purple agent wrapping mini-swe-agent for SWE-bench Pro"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "durga-sandeep" }]
+dependencies = [
+    "mini-swe-agent==2.2.8",
+    # Pinned to the 0.3.x line: matches the SWE-bench green agent's deployed
+    # version and avoids the v1.0 API rename (A2AStarletteApplication removed
+    # in favor of lower-level create_*_routes helpers).
+    "a2a-sdk[http-server]>=0.3.20,<0.4",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.scripts]
+agentbeats-purple = "purple.server:main"
+
+[tool.setuptools]
+packages = ["purple"]
