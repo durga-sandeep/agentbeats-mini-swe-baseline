@@ -3,42 +3,33 @@
   experimental_features: ["docker"],
 
   // mini-swe-agent + LiteLLM reach the model provider directly, so we
-  // need the runtime API key inside the container. We declare both keys
-  // here with empty defaults — Amber's config_schema profile rejects a
-  // property that is neither in `required` nor has a `default`, so the
-  // default makes each one a valid optional field.
+  // need the runtime API key inside the container.
   //
-  // AgentBeats compiles each property into a scenario-level field named
-  // `coding_agent_<KEY>` (role-prefixed); the platform maps Quick
-  // Submit's Participant secret of the same name into it. The env block
-  // below then materializes the plain `OPENAI_API_KEY` /
-  // `ANTHROPIC_API_KEY` env vars inside our container.
+  // Amber's `config_schema` profile (per amber/examples/* on the
+  // RDI-Foundation repo) accepts schemas of the form: every declared
+  // property listed in `required`, NO `default` field, and
+  // `additionalProperties: false`. Optional-with-default doesn't match
+  // any branch of the profile's `anyOf` (we hit that twice — see the
+  // submission iteration log in instructions.md). So we mark all three
+  // fields required and let the user paste empty strings for the ones
+  // they aren't using on a given run (server.py's _alias_api_key skips
+  // empty values, and the executor falls back to a hardcoded default
+  // when MINI_SWE_MODEL arrives empty).
   //
-  // Defensive: _alias_api_key() in server.py also catches variants like
-  // AMBER_CONFIG_CODING_AGENT_OPENAI_API_KEY in case the platform's
-  // prefix convention differs on future runs.
-  //
-  // Default model: openai/gpt-5.5. Paste an OPENAI_API_KEY into Quick
-  // Submit. To switch back to Anthropic without rebuilding, override
-  // MINI_SWE_MODEL via the participant config (and paste the matching
-  // ANTHROPIC_API_KEY).
+  // AgentBeats compiles each property into a scenario-level field
+  // named `coding_agent_<NAME>` (role-prefixed) and surfaces it in the
+  // Quick Submit Participant secrets form. The env block below
+  // re-materializes the original names inside the container; server.py
+  // also defensively aliases any role-prefixed variants that slip past
+  // (`AMBER_CONFIG_CODING_AGENT_OPENAI_API_KEY` etc.).
   config_schema: {
     type: "object",
     properties: {
-      OPENAI_API_KEY: {
-        type: "string",
-        default: "",
-      },
-      ANTHROPIC_API_KEY: {
-        type: "string",
-        default: "",
-      },
-      MINI_SWE_MODEL: {
-        type: "string",
-        default: "openai/gpt-5.5",
-      },
+      OPENAI_API_KEY: { type: "string", secret: true },
+      ANTHROPIC_API_KEY: { type: "string", secret: true },
+      MINI_SWE_MODEL: { type: "string" },
     },
-    required: [],
+    required: ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "MINI_SWE_MODEL"],
     additionalProperties: false,
   },
 

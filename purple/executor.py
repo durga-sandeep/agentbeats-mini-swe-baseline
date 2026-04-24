@@ -55,13 +55,17 @@ def _load_env_config() -> dict[str, Any]:
     step_limit_raw = os.environ.get("MINI_SWE_STEP_LIMIT")
     step_limit = int(step_limit_raw) if step_limit_raw else 0  # 0 = disabled
 
+    # `or` falls through on the empty string too — Amber's config_schema
+    # profile rejects optional fields with defaults, so we declare
+    # MINI_SWE_MODEL as required and let users paste an empty string
+    # when they want the hardcoded default.
     return {
         "agent": {
             "cost_limit": cost_limit,
             "step_limit": step_limit,
         },
         "model": {
-            "model_name": os.environ.get("MINI_SWE_MODEL", DEFAULT_MODEL),
+            "model_name": os.environ.get("MINI_SWE_MODEL") or DEFAULT_MODEL,
         },
     }
 

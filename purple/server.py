@@ -85,7 +85,7 @@ def build_agent_card(host: str, port: int, card_url: str | None) -> AgentCard:
         ],
     )
 
-    model_name = os.environ.get("MINI_SWE_MODEL", "openai/gpt-5.5")
+    model_name = os.environ.get("MINI_SWE_MODEL") or "openai/gpt-5.5"
     return AgentCard(
         name="mini-swe-agent-baseline",
         description=(
