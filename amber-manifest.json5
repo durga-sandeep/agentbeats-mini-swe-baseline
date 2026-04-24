@@ -5,31 +5,28 @@
   // mini-swe-agent + LiteLLM reach the model provider directly, so we
   // need the runtime API key inside the container.
   //
-  // Amber's `config_schema` profile (per amber/examples/* on the
-  // RDI-Foundation repo) accepts schemas of the form: every declared
-  // property listed in `required`, NO `default` field, and
-  // `additionalProperties: false`. Optional-with-default doesn't match
-  // any branch of the profile's `anyOf` (we hit that twice — see the
-  // submission iteration log in instructions.md). So we mark all three
-  // fields required and let the user paste empty strings for the ones
-  // they aren't using on a given run (server.py's _alias_api_key skips
-  // empty values, and the executor falls back to a hardcoded default
-  // when MINI_SWE_MODEL arrives empty).
+  // Amber's `config_schema` profile (compiler/manifest/src/
+  // config_schema_profile.rs in RDI-Foundation/amber) enforces a
+  // `propertyNames` regex of `^(?!.*__)[a-z][a-z0-9_]*$` — all
+  // declared property names MUST be lowercase snake_case. Uppercase
+  // names like `OPENAI_API_KEY` fail validation, even after AgentBeats
+  // role-prefixes them (`coding_agent_OPENAI_API_KEY` still has caps).
+  // We therefore declare lowercase keys here and remap them to the
+  // uppercase env-var names mini-swe-agent / LiteLLM expect inside
+  // `program.env` below.
   //
-  // AgentBeats compiles each property into a scenario-level field
-  // named `coding_agent_<NAME>` (role-prefixed) and surfaces it in the
-  // Quick Submit Participant secrets form. The env block below
-  // re-materializes the original names inside the container; server.py
-  // also defensively aliases any role-prefixed variants that slip past
-  // (`AMBER_CONFIG_CODING_AGENT_OPENAI_API_KEY` etc.).
+  // The other profile rules we conform to: every property listed in
+  // `required` (no defaults), `additionalProperties: false`,
+  // `secret: true` on credential fields (matches
+  // examples/mixed-site/api.json5).
   config_schema: {
     type: "object",
     properties: {
-      OPENAI_API_KEY: { type: "string", secret: true },
-      ANTHROPIC_API_KEY: { type: "string", secret: true },
-      MINI_SWE_MODEL: { type: "string" },
+      openai_api_key: { type: "string", secret: true },
+      anthropic_api_key: { type: "string", secret: true },
+      mini_swe_model: { type: "string" },
     },
-    required: ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "MINI_SWE_MODEL"],
+    required: ["openai_api_key", "anthropic_api_key", "mini_swe_model"],
     additionalProperties: false,
   },
 
@@ -38,9 +35,9 @@
     entrypoint: "python -m purple.server --host 0.0.0.0 --port 9019",
 
     env: {
-      OPENAI_API_KEY: "${config.OPENAI_API_KEY}",
-      ANTHROPIC_API_KEY: "${config.ANTHROPIC_API_KEY}",
-      MINI_SWE_MODEL: "${config.MINI_SWE_MODEL}",
+      OPENAI_API_KEY: "${config.openai_api_key}",
+      ANTHROPIC_API_KEY: "${config.anthropic_api_key}",
+      MINI_SWE_MODEL: "${config.mini_swe_model}",
     },
 
     // mini-swe-agent spawns one sibling Docker container per SWE-bench
