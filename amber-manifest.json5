@@ -1,0 +1,48 @@
+{
+  manifest_version: "0.3.0",
+  experimental_features: ["docker"],
+
+  // Purple agents take the SWE-bench instance payload via A2A and return
+  // a git patch. No participant-side config is exposed.
+  config_schema: {
+    type: "object",
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+
+  program: {
+    image: "ghcr.io/durga-sandeep/agentbeats-mini-swe-baseline:latest",
+    entrypoint: "python -m purple.server --host 0.0.0.0 --port 9019",
+
+    // mini-swe-agent spawns one sibling Docker container per SWE-bench
+    // task (the prebuilt jefzda/sweap-images:* image supplied by the
+    // green agent in each A2A message). Mount the host docker socket so
+    // the participant container can reach the daemon.
+    mounts: [
+      { path: "/var/run/docker.sock", from: "framework.docker" },
+    ],
+
+    network: {
+      endpoints: [
+        { name: "a2a_endpoint", port: 9019 },
+      ],
+    },
+  },
+
+  // We accept inbound A2A messages from the green agent; we don't
+  // initiate outbound A2A calls, so there's no `slots` block.
+  provides: {
+    a2a: { kind: "a2a", endpoint: "a2a_endpoint" },
+  },
+
+  exports: {
+    a2a: "a2a",
+  },
+
+  metadata: {
+    // Matches the role the SWE-bench Pro green agent routes to:
+    // `self._resolve_participant_url(request.participants, "coding_agent")`.
+    participant_roles: ["coding_agent"],
+  },
+}
