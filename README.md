@@ -47,11 +47,35 @@ agent's extractor handles either raw diffs or `{"patch": "..."}` JSON.
 uv venv --python 3.12
 source .venv/bin/activate
 uv pip install -e .
+uv pip install json5    # for scripts/validate-manifest.py
 
 cp .env.example .env    # then edit: OPENAI_API_KEY=... (or ANTHROPIC_API_KEY)
 
 agentbeats-purple --host 127.0.0.1 --port 9019
 ```
+
+## Pre-submission preflight
+
+Before every `git push` + Quick Submit, run:
+
+```bash
+./scripts/preflight.sh
+```
+
+Two checks (~5s, ~$0.001):
+
+1. `scripts/validate-manifest.py` — re-implements Amber's
+   `config_schema` profile rules (lowercase-only property names,
+   no defaults, `additionalProperties` boolean, banned keywords)
+   so we catch validation errors locally instead of via Quick
+   Submit's compile step. Mirrors
+   [`compiler/manifest/src/config_schema_profile.rs`](https://github.com/RDI-Foundation/amber/blob/main/compiler/manifest/src/config_schema_profile.rs).
+2. `scripts/smoke_model.py` — builds the exact mini-swe-agent
+   config our purple agent ships with (same `model_kwargs` strip
+   in `executor.py`) and does a one-token LiteLLM completion.
+   Catches: wrong model name (404), missing/invalid key (401),
+   provider rejecting our kwargs (400 — e.g. GPT-5 reasoning
+   models reject custom `temperature`).
 
 The server pulls a per-task SWE-bench Docker image for each incoming
 request, so the host Docker daemon must be reachable.
