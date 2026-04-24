@@ -87,22 +87,6 @@ def _parse_instance(text: str) -> dict[str, Any]:
     return payload
 
 
-def _strip_unsupported_kwargs(config: dict[str, Any], model_name: str) -> None:
-    """Remove model_kwargs that the chosen provider rejects.
-
-    OpenAI's GPT-5 reasoning family (gpt-5, gpt-5.x, gpt-5-pro, etc.)
-    only accepts the default temperature; passing any value (including
-    the swebench.yaml default of 0.0) returns a 400. Strip it for those
-    models. mini-swe-agent's recursive_merge is additive — it can't
-    remove keys — so we mutate base_config in place before merging.
-    """
-    if not model_name.startswith("openai/gpt-5"):
-        return
-    kwargs = config.get("model", {}).get("model_kwargs")
-    if isinstance(kwargs, dict):
-        kwargs.pop("temperature", None)
-
-
 def _run_mini_swe(instance: dict[str, Any]) -> dict[str, Any]:
     """Run mini-swe-agent synchronously; returns the agent's final result dict.
 
@@ -110,9 +94,15 @@ def _run_mini_swe(instance: dict[str, Any]) -> dict[str, Any]:
     `exit_status`. Shape is defined by `DefaultAgent.run`.
     """
     base_config = get_config_from_spec(str(DEFAULT_CONFIG_PATH))
-    env_config = _load_env_config()
-    _strip_unsupported_kwargs(base_config, env_config["model"]["model_name"])
-    config = recursive_merge(base_config, env_config)
+    # Use the provider's default sampling params. mini-swe-agent's
+    # swebench.yaml hardcodes temperature=0.0, which OpenAI's GPT-5
+    # reasoning family rejects with a 400. Stripping model_kwargs
+    # entirely keeps us provider-agnostic — Anthropic, OpenAI GPT-4/5,
+    # and any future LiteLLM model all just work with their defaults.
+    # mini-swe-agent's recursive_merge is additive (can't remove keys)
+    # so we mutate base_config in place before merging.
+    base_config.get("model", {}).pop("model_kwargs", None)
+    config = recursive_merge(base_config, _load_env_config())
 
     env = get_sb_environment(config, instance)
     agent = get_agent(
