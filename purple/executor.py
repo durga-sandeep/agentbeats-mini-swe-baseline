@@ -37,7 +37,7 @@ from minisweagent.utils.serialize import recursive_merge
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = builtin_config_dir / "benchmarks" / "swebench.yaml"
-DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
+DEFAULT_MODEL = "openai/gpt-5.5"
 DEFAULT_COST_LIMIT = 3.0  # USD per instance; mirrors mini-swe-agent's default
 
 

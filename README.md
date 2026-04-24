@@ -6,8 +6,9 @@ An A2A purple agent wrapping Princeton's
 green agent.
 
 Baseline submission — no prompt tuning, no tool additions, no scaffolding
-changes. Just `mini-swe-agent` (v2.2.8) driven by Claude Sonnet 4.6 via
-LiteLLM, exposed over A2A.
+changes. Just `mini-swe-agent` (v2.2.8) driven by OpenAI GPT-5.5 via
+LiteLLM, exposed over A2A. Anthropic models work as a drop-in via
+`MINI_SWE_MODEL`.
 
 ## Flow
 
@@ -47,7 +48,7 @@ uv venv --python 3.12
 source .venv/bin/activate
 uv pip install -e .
 
-cp .env.example .env    # then edit: ANTHROPIC_API_KEY=...
+cp .env.example .env    # then edit: OPENAI_API_KEY=... (or ANTHROPIC_API_KEY)
 
 agentbeats-purple --host 127.0.0.1 --port 9019
 ```
@@ -62,7 +63,7 @@ docker build --platform linux/amd64 -t agentbeats-mini-swe-baseline:local .
 
 docker run --rm --platform linux/amd64 \
   -p 9019:9019 \
-  -e ANTHROPIC_API_KEY \
+  -e OPENAI_API_KEY \
   -v /var/run/docker.sock:/var/run/docker.sock \
   agentbeats-mini-swe-baseline:local
 ```
@@ -75,13 +76,14 @@ time.
 
 All knobs are environment variables (see [`.env.example`](./.env.example)).
 
-| Variable              | Default                           | Purpose                                 |
-| --------------------- | --------------------------------- | --------------------------------------- |
-| `ANTHROPIC_API_KEY`   | (required)                        | Auth for the model provider             |
-| `MINI_SWE_MODEL`      | `anthropic/claude-sonnet-4-6`     | Any LiteLLM model ID                    |
-| `MINI_SWE_COST_LIMIT` | `3.0`                             | USD cap per instance                    |
-| `MINI_SWE_STEP_LIMIT` | `0`                               | 0 disables; otherwise a hard step cap   |
-| `LOG_LEVEL`           | `INFO`                            | Server log level                        |
+| Variable              | Default                           | Purpose                                            |
+| --------------------- | --------------------------------- | -------------------------------------------------- |
+| `OPENAI_API_KEY`      | (required for OpenAI models)      | Auth for OpenAI model provider                     |
+| `ANTHROPIC_API_KEY`   | (required for Anthropic models)   | Auth for Anthropic model provider                  |
+| `MINI_SWE_MODEL`      | `openai/gpt-5.5`                  | Any LiteLLM model ID                               |
+| `MINI_SWE_COST_LIMIT` | `3.0`                             | USD cap per instance                               |
+| `MINI_SWE_STEP_LIMIT` | `0`                               | 0 disables; otherwise a hard step cap              |
+| `LOG_LEVEL`           | `INFO`                            | Server log level                                   |
 
 ## License
 

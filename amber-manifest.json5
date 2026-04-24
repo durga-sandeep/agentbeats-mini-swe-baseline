@@ -2,24 +2,40 @@
   manifest_version: "0.3.0",
   experimental_features: ["docker"],
 
-  // mini-swe-agent + LiteLLM reach Anthropic directly, so we need the
-  // runtime ANTHROPIC_API_KEY inside the container. We declare it here
-  // with an empty default — Amber's config_schema profile rejects a
+  // mini-swe-agent + LiteLLM reach the model provider directly, so we
+  // need the runtime API key inside the container. We declare both keys
+  // here with empty defaults — Amber's config_schema profile rejects a
   // property that is neither in `required` nor has a `default`, so the
-  // default makes this a valid optional field. AgentBeats compiles this
-  // into a scenario-level property named `coding_agent_ANTHROPIC_API_KEY`
-  // (role-prefixed); the platform maps Quick Submit's Participant secret
-  // of the same name into it. The env template below then materializes
-  // the plain `ANTHROPIC_API_KEY` env var inside our container.
-  // Defensive: _alias_anthropic_api_key() in server.py also catches
-  // variants like AMBER_CONFIG_CODING_AGENT_ANTHROPIC_API_KEY in case
-  // the platform's prefix convention differs on future runs.
+  // default makes each one a valid optional field.
+  //
+  // AgentBeats compiles each property into a scenario-level field named
+  // `coding_agent_<KEY>` (role-prefixed); the platform maps Quick
+  // Submit's Participant secret of the same name into it. The env block
+  // below then materializes the plain `OPENAI_API_KEY` /
+  // `ANTHROPIC_API_KEY` env vars inside our container.
+  //
+  // Defensive: _alias_api_key() in server.py also catches variants like
+  // AMBER_CONFIG_CODING_AGENT_OPENAI_API_KEY in case the platform's
+  // prefix convention differs on future runs.
+  //
+  // Default model: openai/gpt-5.5. Paste an OPENAI_API_KEY into Quick
+  // Submit. To switch back to Anthropic without rebuilding, override
+  // MINI_SWE_MODEL via the participant config (and paste the matching
+  // ANTHROPIC_API_KEY).
   config_schema: {
     type: "object",
     properties: {
+      OPENAI_API_KEY: {
+        type: "string",
+        default: "",
+      },
       ANTHROPIC_API_KEY: {
         type: "string",
         default: "",
+      },
+      MINI_SWE_MODEL: {
+        type: "string",
+        default: "openai/gpt-5.5",
       },
     },
     required: [],
@@ -31,7 +47,9 @@
     entrypoint: "python -m purple.server --host 0.0.0.0 --port 9019",
 
     env: {
+      OPENAI_API_KEY: "${config.OPENAI_API_KEY}",
       ANTHROPIC_API_KEY: "${config.ANTHROPIC_API_KEY}",
+      MINI_SWE_MODEL: "${config.MINI_SWE_MODEL}",
     },
 
     // mini-swe-agent spawns one sibling Docker container per SWE-bench

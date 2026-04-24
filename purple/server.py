@@ -27,32 +27,32 @@ logger = logging.getLogger(__name__)
 # `AMBER_CONFIG_X` env vars inside the participant container. When we
 # declare X at the participant-manifest level, AgentBeats auto-prefixes
 # the scenario-level field with the role name (e.g., our
-# `ANTHROPIC_API_KEY` becomes `coding_agent_ANTHROPIC_API_KEY` in the
+# `OPENAI_API_KEY` becomes `coding_agent_OPENAI_API_KEY` in the
 # compiled scenario, per the 019dc154 submission's validation error).
-# So the env var arriving in our container could be any of:
-#   ANTHROPIC_API_KEY                             (plain, from our env template)
-#   AMBER_CONFIG_ANTHROPIC_API_KEY                (Amber's standard mapping)
-#   AMBER_CONFIG_CODING_AGENT_ANTHROPIC_API_KEY   (role-prefixed mapping)
-#   CODING_AGENT_ANTHROPIC_API_KEY                (no AMBER prefix variant)
-# Promote whichever we find to the canonical ANTHROPIC_API_KEY so
-# mini-swe-agent / LiteLLM can pick it up unchanged.
-_API_KEY_ALIAS_PATTERN = re.compile(
-    r"^("
+# So the env var arriving in our container could be any of (using
+# OPENAI_API_KEY as example; same shape applies to ANTHROPIC_API_KEY):
+#   OPENAI_API_KEY                             (plain, from our env template)
+#   AMBER_CONFIG_OPENAI_API_KEY                (Amber's standard mapping)
+#   AMBER_CONFIG_CODING_AGENT_OPENAI_API_KEY   (role-prefixed mapping)
+#   CODING_AGENT_OPENAI_API_KEY                (no AMBER prefix variant)
+# Promote whichever we find to the canonical name so mini-swe-agent /
+# LiteLLM can pick it up unchanged.
+_ALIAS_PREFIX_ALTERNATION = (
     r"AMBER_CONFIG_|AMBER_SECRET_|"
     r"AMBER_CONFIG_CODING_AGENT_|AMBER_SECRET_CODING_AGENT_|"
     r"CODING_AGENT_|"
     r"SECRET_|PARTICIPANT_|"
-    r")?ANTHROPIC_API_KEY$"
 )
 
 
-def _alias_anthropic_api_key() -> None:
-    if os.environ.get("ANTHROPIC_API_KEY"):
+def _alias_api_key(canonical: str) -> None:
+    if os.environ.get(canonical):
         return
+    pattern = re.compile(rf"^({_ALIAS_PREFIX_ALTERNATION})?{re.escape(canonical)}$")
     for name, value in os.environ.items():
-        if _API_KEY_ALIAS_PATTERN.match(name) and value:
-            os.environ["ANTHROPIC_API_KEY"] = value
-            logger.info("Aliased %s -> ANTHROPIC_API_KEY", name)
+        if pattern.match(name) and value:
+            os.environ[canonical] = value
+            logger.info("Aliased %s -> %s", name, canonical)
             return
 
 
@@ -60,11 +60,12 @@ def _log_env_diagnostic() -> None:
     """Log NAMES (not values) of env vars relevant to model auth.
 
     Helps diagnose how AgentBeats injects secrets when a run fails with
-    'Missing Anthropic API Key' — we see what arrived vs what didn't.
+    a 'Missing API Key' error — we see what arrived vs what didn't.
     """
     pattern = re.compile(r"ANTHROPIC|OPENAI|API_KEY|TOKEN|AMBER|SECRET", re.IGNORECASE)
     matching = sorted(name for name in os.environ if pattern.search(name))
     logger.info("Env var names matching auth/secrets patterns: %s", matching)
+    logger.info("OPENAI_API_KEY present: %s", "OPENAI_API_KEY" in os.environ)
     logger.info("ANTHROPIC_API_KEY present: %s", "ANTHROPIC_API_KEY" in os.environ)
 
 
@@ -84,7 +85,7 @@ def build_agent_card(host: str, port: int, card_url: str | None) -> AgentCard:
         ],
     )
 
-    model_name = os.environ.get("MINI_SWE_MODEL", "anthropic/claude-sonnet-4-6")
+    model_name = os.environ.get("MINI_SWE_MODEL", "openai/gpt-5.5")
     return AgentCard(
         name="mini-swe-agent-baseline",
         description=(
@@ -124,7 +125,8 @@ def main() -> None:
     )
 
     _log_env_diagnostic()
-    _alias_anthropic_api_key()
+    _alias_api_key("OPENAI_API_KEY")
+    _alias_api_key("ANTHROPIC_API_KEY")
 
     agent_card = build_agent_card(args.host, args.port, args.card_url)
 
