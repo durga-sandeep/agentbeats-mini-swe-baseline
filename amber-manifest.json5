@@ -3,16 +3,17 @@
   experimental_features: ["docker"],
 
   // mini-swe-agent + LiteLLM reach Anthropic directly, so we need the
-  // runtime ANTHROPIC_API_KEY inside the container. Declaring it in
-  // config_schema lets AgentBeats Quick Submit map the "Participant
-  // secret" of the same name into ${config.ANTHROPIC_API_KEY}, which
-  // we then bind to the env var below.
+  // runtime ANTHROPIC_API_KEY inside the container. Declared here as
+  // optional — if supplied via Quick Submit's Config JSON, the env
+  // template below resolves. If supplied only via "Participant secrets"
+  // (which may inject under a platform-specific prefix), the defensive
+  // aliasing in purple/server.py::_alias_anthropic_api_key() catches it.
   config_schema: {
     type: "object",
     properties: {
       ANTHROPIC_API_KEY: { type: "string" },
     },
-    required: ["ANTHROPIC_API_KEY"],
+    required: [],
     additionalProperties: true,
   },
 
