@@ -2,18 +2,27 @@
   manifest_version: "0.3.0",
   experimental_features: ["docker"],
 
-  // Purple agents take the SWE-bench instance payload via A2A and return
-  // a git patch. No participant-side config is exposed.
+  // mini-swe-agent + LiteLLM reach Anthropic directly, so we need the
+  // runtime ANTHROPIC_API_KEY inside the container. Declaring it in
+  // config_schema lets AgentBeats Quick Submit map the "Participant
+  // secret" of the same name into ${config.ANTHROPIC_API_KEY}, which
+  // we then bind to the env var below.
   config_schema: {
     type: "object",
-    properties: {},
-    required: [],
-    additionalProperties: false,
+    properties: {
+      ANTHROPIC_API_KEY: { type: "string" },
+    },
+    required: ["ANTHROPIC_API_KEY"],
+    additionalProperties: true,
   },
 
   program: {
     image: "ghcr.io/durga-sandeep/agentbeats-mini-swe-baseline:latest",
     entrypoint: "python -m purple.server --host 0.0.0.0 --port 9019",
+
+    env: {
+      ANTHROPIC_API_KEY: "${config.ANTHROPIC_API_KEY}",
+    },
 
     // mini-swe-agent spawns one sibling Docker container per SWE-bench
     // task (the prebuilt jefzda/sweap-images:* image supplied by the

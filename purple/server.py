@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
 
 import uvicorn
 from a2a.server.apps import A2AStarletteApplication
@@ -20,6 +21,38 @@ from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from purple.executor import MiniSWEExecutor
 
 logger = logging.getLogger(__name__)
+
+
+# AgentBeats' Amber runtime exposes `${config.X}` values as
+# `AMBER_CONFIG_X` env vars inside the participant container; Quick
+# Submit "Participant secrets" may also land under other prefixes. If
+# the canonical ANTHROPIC_API_KEY isn't set, promote any matching alias
+# so mini-swe-agent / LiteLLM can pick it up.
+_API_KEY_ALIAS_PATTERN = re.compile(
+    r"^(AMBER_CONFIG_|AMBER_SECRET_|SECRET_|PARTICIPANT_|)?ANTHROPIC_API_KEY$"
+)
+
+
+def _alias_anthropic_api_key() -> None:
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return
+    for name, value in os.environ.items():
+        if _API_KEY_ALIAS_PATTERN.match(name) and value:
+            os.environ["ANTHROPIC_API_KEY"] = value
+            logger.info("Aliased %s -> ANTHROPIC_API_KEY", name)
+            return
+
+
+def _log_env_diagnostic() -> None:
+    """Log NAMES (not values) of env vars relevant to model auth.
+
+    Helps diagnose how AgentBeats injects secrets when a run fails with
+    'Missing Anthropic API Key' — we see what arrived vs what didn't.
+    """
+    pattern = re.compile(r"ANTHROPIC|OPENAI|API_KEY|TOKEN|AMBER|SECRET", re.IGNORECASE)
+    matching = sorted(name for name in os.environ if pattern.search(name))
+    logger.info("Env var names matching auth/secrets patterns: %s", matching)
+    logger.info("ANTHROPIC_API_KEY present: %s", "ANTHROPIC_API_KEY" in os.environ)
 
 
 def build_agent_card(host: str, port: int, card_url: str | None) -> AgentCard:
@@ -76,6 +109,9 @@ def main() -> None:
         level=args.log_level,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
+
+    _log_env_diagnostic()
+    _alias_anthropic_api_key()
 
     agent_card = build_agent_card(args.host, args.port, args.card_url)
 
